@@ -1,0 +1,93 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - "**.md"
+  workflow_dispatch:
+  # Daily rebuild at 18:00 UTC so the baked CLIs track their upstream releases.
+  schedule:
+    - cron: "0 18 * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  meta:
+    runs-on: ubuntu-24.04-arm
+    outputs:
+      tag: ${{ steps.meta.outputs.tag }}
+      name: ${{ steps.meta.outputs.name }}
+    steps:
+      - id: meta
+        run: |
+          DATE=$(date -u +%Y%m%d-%H%M)
+          echo "tag=v${DATE}" >> "$GITHUB_OUTPUT"
+          echo "name=aarch64 rootfs — ${DATE} UTC" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: meta
+    # Native arm64 runner: no QEMU, so the CLIs' own arm64 binaries run during
+    # the build (every one of them is --version'd by selfcheck.sh).
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        distro: [alpine, ubuntu]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc || true
+          df -h /
+
+      - name: Build ${{ matrix.distro }}
+        run: ./build/build.sh ${{ matrix.distro }}
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rootfs-${{ matrix.distro }}
+          path: |
+            dist/${{ matrix.distro }}-e2e-aarch64-rootfs.tar.gz
+            dist/${{ matrix.distro }}-e2e-aarch64-rootfs.tar.gz.sha256
+            dist/${{ matrix.distro }}-e2e-aarch64-rootfs.tar.zst
+            dist/${{ matrix.distro }}-e2e-aarch64-rootfs.tar.zst.sha256
+          if-no-files-found: error
+          retention-days: 3
+
+  release:
+    needs: [meta, build]
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          pattern: rootfs-*
+          merge-multiple: true
+
+      - name: List assets
+        run: ls -lah dist && cat dist/*.sha256
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: ${{ needs.meta.outputs.tag }}
+          name: ${{ needs.meta.outputs.name }}
+          make_latest: "true"
+          generate_release_notes: false
+          files: |
+            dist/alpine-e2e-aarch64-rootfs.tar.gz
+            dist/alpine-e2e-aarch64-rootfs.tar.gz.sha256
+            dist/alpine-e2e-aarch64-rootfs.tar.zst
+            dist/alpine-e2e-aarch64-rootfs.tar.zst.sha256
+            dist/ubuntu-e2e-aarch64-rootfs.tar.gz
+            dist/ubuntu-e2e-aarch64-rootfs.tar.gz.sha256
+            dist/ubuntu-e2e-aarch64-rootfs.tar.zst
+            dist/ubuntu-e2e-aarch64-rootfs.tar.zst.sha256

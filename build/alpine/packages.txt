@@ -1,0 +1,45 @@
+# apk packages baked into the alpine image, on top of alpine:3.23.
+# One package per line; blank lines and #-comments are ignored.
+
+# toolchain + python (build-base pulls gcc/musl-dev/make/binutils)
+build-base
+python3
+openssl
+bubblewrap
+socat
+
+# node CLIs: codex, pi, @anthropic-ai/sandbox-runtime
+nodejs
+npm
+
+# installers + the shell srt/bun scripts require (alpine's default is busybox ash)
+curl
+bash
+
+# `ss`
+iproute2-ss
+
+# <linux/fb.h>
+linux-headers
+
+# ffmpeg + the tools its test suites use
+ffmpeg
+diffutils
+make
+coreutils
+jq
+
+# zstd
+zstd
+
+# sandbox-runtime probes for rg at startup
+ripgrep
+
+# generally useful
+git
+
+# Build-time requirements of build/common/finalize.sh, kept in the image because
+# they are cheap and useful: GNU tar (busybox tar has no --xattrs) and unzip
+# (bun.com/install refuses to run without it).
+tar
+unzip

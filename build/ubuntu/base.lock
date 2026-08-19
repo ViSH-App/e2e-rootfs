@@ -1,0 +1,5 @@
+# Pinned ViSH-App/ubuntu-rootfs release used as the ubuntu image's base.
+# Sourced by build/build.sh; plain `KEY=value` shell syntax only.
+UBUNTU_ROOTFS_TAG=v24.04-20260817-1214
+UBUNTU_ROOTFS_FILE=ubuntu-aarch64-rootfs.tar.gz
+UBUNTU_ROOTFS_SHA256=85899e1f73ade8689cc56258e8d19259eff84852e7568db1a7921cf9c2000b7c

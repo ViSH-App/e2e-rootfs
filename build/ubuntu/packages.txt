@@ -1,0 +1,20 @@
+# apt packages baked into the ubuntu image, on top of the pinned
+# ViSH-App/ubuntu-rootfs release (build/ubuntu/base.lock).
+# The base already ships bash, busybox-static, curl, file, git, openssl,
+# ca-certificates, iproute2, sudo, procps — only the gaps are listed here.
+# Installed with --no-install-recommends. One package per line.
+
+# toolchain + python
+build-essential
+python3
+
+# explicit even though the base has them: apt makes
+# an already-installed package a no-op
+curl
+ca-certificates
+
+# NodeSource repo key handling (`gpg --dearmor`)
+gnupg
+
+# build/common/finalize.sh emits a .tar.zst as well as a .tar.gz
+zstd
