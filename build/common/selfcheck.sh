@@ -41,6 +41,24 @@ check npm     "" npm --version
 check git     "" git --version
 check curl    "" curl --version
 
+# --- baked resolver --------------------------------------------------------
+# finalize.sh bakes a fixed public resolver so the consumer never has to graft
+# the build/run host's own nameserver into the guest (see the comment there).
+# Assert BOTH halves: the expected server is present, and no unroutable-from-
+# the-guest address leaked in — loopback (the host's own stub resolver),
+# link-local, and the 198.18/15 benchmark block a fake-IP proxy hands out.
+# A leak here is silent at run time and expensive to trace, so it blocks the
+# publish instead.
+if [ ! -s /etc/resolv.conf ]; then
+    bad resolv.conf "missing or empty"
+elif ! grep -q '^nameserver 1\.1\.1\.1$' /etc/resolv.conf; then
+    bad resolv.conf "no 'nameserver 1.1.1.1': $(tr '\n' ' ' < /etc/resolv.conf)"
+elif grep -qE '^nameserver (127\.|::1|169\.254\.|198\.1[89]\.)' /etc/resolv.conf; then
+    bad resolv.conf "unroutable resolver leaked: $(tr '\n' ' ' < /etc/resolv.conf)"
+else
+    ok resolv.conf "$(tr '\n' ' ' < /etc/resolv.conf)"
+fi
+
 if [ "$DISTRO" = alpine ]; then
     # --- alpine tools ------------------------------------------------------
     check bun      /root/.bun/bin/bun /root/.bun/bin/bun --version

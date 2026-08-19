@@ -1,8 +1,9 @@
 #!/bin/sh
 # Shared tail of every <distro>/inside.sh:
 #   1. strip package-manager / installer caches,
-#   2. run selfcheck.sh (a failure here fails the job — nothing is published),
-#   3. pack /out/<distro>-e2e-aarch64-rootfs.tar.{gz,zst}.
+#   2. bake /etc/resolv.conf,
+#   3. run selfcheck.sh (a failure here fails the job — nothing is published),
+#   4. pack /out/<distro>-e2e-aarch64-rootfs.tar.{gz,zst}.
 set -eu
 
 : "${DISTRO:?}"
@@ -16,6 +17,33 @@ echo ">> cleaning caches"
 rm -rf /var/cache/apk/* /var/lib/apt/lists/* /var/cache/apt/archives/*.deb \
        /root/.npm/_cacache /root/.bun/install/cache /root/.cache/* \
        /tmp/* /var/tmp/* 2>/dev/null || true
+
+# ---------------------------------------------------------------------------
+# /etc/resolv.conf — baked, not derived from the build host.
+#
+# The consumer (vish-core's e2e gate) used to copy the HOST Mac's first
+# routable nameserver into the guest at fixture-unpack time. That is a
+# build-time snapshot of a RUN-time property, and it rots: a laptop whose
+# resolver is Tailscale MagicDNS (100.100.100.100) bakes an address that
+# disappears the moment Tailscale stops, and the guest then resolves nothing.
+# The symptom is silent — `claude -p` returns empty because it is hanging on
+# DNS, not on anything in ViSH — and it was written off as "environment" in
+# five commit messages before being traced.
+#
+# So the fixture ships a fixed public resolver instead. Every machine that runs
+# the gate (the self-hosted Macs and the hosted macos-26 runners reached
+# through the relay) can reach it; a machine that cannot must fail the gate's
+# DNS probe loudly rather than have the harness silently rewrite this file.
+#
+# Docker bind-mounts /etc/resolv.conf into the container, so this write lands
+# on the bind target — which is fine because build.sh runs the whole build in
+# ONE `docker run` and tar reads the file's CONTENT a few lines below. It would
+# NOT survive a `docker build` layer commit (Docker drops resolv.conf/hosts/
+# hostname from layers); keep the single-container build if this is to work.
+echo ">> baking /etc/resolv.conf"
+printf 'nameserver 1.1.1.1\nnameserver 8.8.8.8\n' > /etc/resolv.conf
+chmod 0644 /etc/resolv.conf
+cat /etc/resolv.conf
 
 # ---------------------------------------------------------------------------
 sh /build/common/selfcheck.sh
