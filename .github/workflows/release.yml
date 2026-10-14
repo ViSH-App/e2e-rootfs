@@ -60,7 +60,7 @@ jobs:
             dist/${{ matrix.distro }}-e2e-aarch64-rootfs.tar.zst
             dist/${{ matrix.distro }}-e2e-aarch64-rootfs.tar.zst.sha256
           if-no-files-found: error
-          retention-days: 3
+          retention-days: 1
 
   release:
     needs: [meta, build]
