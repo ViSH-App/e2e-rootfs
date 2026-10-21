@@ -91,3 +91,25 @@ jobs:
             dist/ubuntu-e2e-aarch64-rootfs.tar.gz.sha256
             dist/ubuntu-e2e-aarch64-rootfs.tar.zst
             dist/ubuntu-e2e-aarch64-rootfs.tar.zst.sha256
+
+  # Every artifact of this run goes when the run ends, pass or fail: the
+  # rootfs images are ~1 GB each and artifact storage is an org-wide quota
+  # (a full quota fails every other repo's uploads too).
+  cleanup:
+    needs: [build, release]
+    if: always()
+    runs-on: ubuntu-24.04-arm
+    permissions:
+      actions: write
+    steps:
+      - name: delete this run's artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          n=0
+          for id in $(gh api --paginate "repos/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID/artifacts" -q '.artifacts[].id'); do
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/actions/artifacts/$id"
+            n=$((n + 1))
+          done
+          echo "deleted $n artifact(s) of run $GITHUB_RUN_ID"
