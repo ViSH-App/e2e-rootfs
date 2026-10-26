@@ -1,0 +1,5 @@
+# Pinned ViSH-App/ubuntu-rootfs release used as the ubuntu-26.04 image's base.
+# Sourced by build/build.sh; plain `KEY=value` shell syntax only.
+UBUNTU_ROOTFS_TAG=v26.04-20261026-044953-40270806650-1
+UBUNTU_ROOTFS_FILE=ubuntu-aarch64-rootfs.tar.gz
+UBUNTU_ROOTFS_SHA256=ba81eb1de20f9ff742313d83b0478e5c919c1477885d6e81b2053589618f0e13

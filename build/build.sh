@@ -2,7 +2,7 @@
 # Build a prebuilt aarch64 rootfs tarball with the toolchain and agent CLIs baked in.
 # Same entrypoint is used locally and in CI.
 #
-# Usage:   ./build/build.sh <alpine|ubuntu>
+# Usage:   ./build/build.sh <alpine|ubuntu|ubuntu-26.04>
 # Required: docker (with QEMU/binfmt when the host is not arm64).
 # Output:   dist/<distro>-e2e-aarch64-rootfs.tar.{gz,zst} and .sha256 for each.
 #
@@ -17,8 +17,8 @@ ARCH="${ARCH:-aarch64}"
 DOCKER_PLATFORM="linux/arm64"
 
 case "$DISTRO" in
-  alpine|ubuntu) ;;
-  *) echo "usage: $0 <alpine|ubuntu>" >&2; exit 2 ;;
+  alpine|ubuntu|ubuntu-26.04) ;;
+  *) echo "usage: $0 <alpine|ubuntu|ubuntu-26.04>" >&2; exit 2 ;;
 esac
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -36,12 +36,12 @@ case "$DISTRO" in
     BASE_IMAGE="${ALPINE_IMAGE:-alpine:3.23}"
     docker pull --platform "$DOCKER_PLATFORM" "$BASE_IMAGE"
     ;;
-  ubuntu)
-    # The base is NOT docker's ubuntu:24.04 — it is the exact ViSH-App/ubuntu-rootfs
-    # release pinned in base.lock, so the image is that rootfs plus tooling and
+  ubuntu|ubuntu-26.04)
+    # The base is NOT docker's ubuntu image — it is the exact ViSH-App/ubuntu-rootfs
+    # release pinned in build/<distro>/base.lock, so the image is that rootfs plus tooling and
     # nothing else. Downloaded, sha256-verified, then
     # `docker import`ed so the install runs inside the real thing.
-    LOCK="$REPO_ROOT/build/ubuntu/base.lock"
+    LOCK="$REPO_ROOT/build/$DISTRO/base.lock"
     # shellcheck disable=SC1090
     . "$LOCK"
     : "${UBUNTU_ROOTFS_TAG:?base.lock must set UBUNTU_ROOTFS_TAG}"

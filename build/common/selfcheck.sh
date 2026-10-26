@@ -34,12 +34,14 @@ need() { command -v "$1" >/dev/null 2>&1 && ok "$1" "$(command -v "$1")" || bad 
 echo ">> selfcheck ($DISTRO)"
 
 # --- common userland -------------------------------------------------------
-check python3 "" python3 --version
 check gcc     "" gcc --version
-check node    "" node --version
-check npm     "" npm --version
 check git     "" git --version
 check curl    "" curl --version
+if [ "$DISTRO" != ubuntu-26.04 ]; then
+    check python3 "" python3 --version
+    check node    "" node --version
+    check npm     "" npm --version
+fi
 
 # --- baked resolver --------------------------------------------------------
 # finalize.sh bakes a fixed public resolver so the consumer never has to graft
@@ -83,6 +85,24 @@ if [ "$DISTRO" = alpine ]; then
     [ "$(npm config get prefix)" = /root/.npm-global ] \
         && ok npm-prefix /root/.npm-global \
         || bad npm-prefix "npm config prefix is $(npm config get prefix), not /root/.npm-global"
+elif [ "$DISTRO" = ubuntu-26.04 ]; then
+    # --- ubuntu-26.04: the guest GPU image ---------------------------------
+    # The point of this image is Mesa's gfxstream Vulkan ICD; check the ICD
+    # manifest, the driver it names and that a probe links against libvulkan.
+    need zstd
+    need vulkaninfo
+    icd=/usr/share/vulkan/icd.d/gfxstream_vk_icd.json
+    if [ -f "$icd" ]; then
+        # library_path is a bare soname, resolved by the loader via ld.so.
+        lib=$(sed -n 's/.*"library_path": *"\([^"]*\)".*/\1/p' "$icd")
+        if [ -n "$lib" ] && ldconfig -p | grep -q "$lib"; then ok gfxstream-icd "$lib"
+        else bad gfxstream-icd "$icd names '$lib', not in the ld.so cache"; fi
+    else
+        bad gfxstream-icd "$icd missing"
+    fi
+    printf '#include <vulkan/vulkan.h>\nint main(void){uint32_t v=0;return vkEnumerateInstanceVersion(&v);}\n' > /tmp/vkcheck.c
+    gcc -o /tmp/vkcheck /tmp/vkcheck.c -lvulkan && ok libvulkan-dev "links" || bad libvulkan-dev "probe does not link"
+    rm -f /tmp/vkcheck /tmp/vkcheck.c
 else
     # --- ubuntu tools ------------------------------------------------------
     check bun          /root/.bun/bin/bun /root/.bun/bin/bun --version

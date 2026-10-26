@@ -62,8 +62,42 @@ jobs:
           if-no-files-found: error
           retention-days: 1
 
+  # The guest GPU image (Mesa's gfxstream Vulkan ICD for vish-core's
+  # vulkan_memory_budget case). Self-hosted ubuntu group, which is amd64, so the
+  # arm64 rootfs is built under QEMU; it bakes no CLIs, so nothing slow runs
+  # emulated.
+  build-gpu:
+    needs: meta
+    runs-on:
+      group: ubuntu
+      labels: large
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build ubuntu-26.04
+        run: ./build/build.sh ubuntu-26.04
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rootfs-ubuntu-26.04
+          path: |
+            dist/ubuntu-26.04-e2e-aarch64-rootfs.tar.gz
+            dist/ubuntu-26.04-e2e-aarch64-rootfs.tar.gz.sha256
+            dist/ubuntu-26.04-e2e-aarch64-rootfs.tar.zst
+            dist/ubuntu-26.04-e2e-aarch64-rootfs.tar.zst.sha256
+          if-no-files-found: error
+          retention-days: 1
+
   release:
-    needs: [meta, build]
+    needs: [meta, build, build-gpu]
+    # A failed GPU image does not hold back the daily alpine/ubuntu release; the
+    # consumer then finds no ubuntu-26.04 asset and its GPU case fails loudly.
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/download-artifact@v4
@@ -91,12 +125,16 @@ jobs:
             dist/ubuntu-e2e-aarch64-rootfs.tar.gz.sha256
             dist/ubuntu-e2e-aarch64-rootfs.tar.zst
             dist/ubuntu-e2e-aarch64-rootfs.tar.zst.sha256
+            dist/ubuntu-26.04-e2e-aarch64-rootfs.tar.gz
+            dist/ubuntu-26.04-e2e-aarch64-rootfs.tar.gz.sha256
+            dist/ubuntu-26.04-e2e-aarch64-rootfs.tar.zst
+            dist/ubuntu-26.04-e2e-aarch64-rootfs.tar.zst.sha256
 
   # Every artifact of this run goes when the run ends, pass or fail: the
   # rootfs images are ~1 GB each and artifact storage is an org-wide quota
   # (a full quota fails every other repo's uploads too).
   cleanup:
-    needs: [build, release]
+    needs: [build, build-gpu, release]
     if: always()
     runs-on: ubuntu-24.04-arm
     permissions:

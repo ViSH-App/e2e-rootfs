@@ -1,0 +1,16 @@
+# apt packages baked into the ubuntu-26.04 image, on top of the pinned
+# ViSH-App/ubuntu-rootfs release (build/ubuntu-26.04/base.lock).
+# This image exists for the guest GPU cases (vish-core vulkan_memory_budget):
+# 24.04's Mesa has no gfxstream Vulkan driver, 26.04's does. No agent CLIs.
+# Installed with --no-install-recommends. One package per line.
+
+# toolchain for the cases' guest-compiled probes
+build-essential
+
+# Vulkan loader + headers, and Mesa's Vulkan ICDs (gfxstream among them)
+libvulkan-dev
+mesa-vulkan-drivers
+vulkan-tools
+
+# build/common/finalize.sh emits a .tar.zst as well as a .tar.gz
+zstd

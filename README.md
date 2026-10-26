@@ -2,21 +2,25 @@
 
 Two aarch64 root filesystems with a developer toolchain and the common AI-agent
 CLIs pre-installed, published as tarballs and rebuilt daily so the CLIs track
-their upstream releases.
+their upstream releases, plus a third, CLI-free Ubuntu 26.04 image for the
+guest GPU cases.
 
 | image    | base                                                                                   |
 |----------|----------------------------------------------------------------------------------------|
 | `alpine` | `alpine:3.23` (musl)                                                                   |
 | `ubuntu` | the pinned [`ViSH-App/ubuntu-rootfs`](https://github.com/ViSH-App/ubuntu-rootfs) release (glibc) |
+| `ubuntu-26.04` | the pinned `ViSH-App/ubuntu-rootfs` 26.04 release (glibc) |
 
 ## Artifacts
 
-Each release provides eight files:
+Each release provides twelve files:
 
 - `alpine-e2e-aarch64-rootfs.tar.gz` (+ `.sha256`)
 - `alpine-e2e-aarch64-rootfs.tar.zst` (+ `.sha256`)
 - `ubuntu-e2e-aarch64-rootfs.tar.gz` (+ `.sha256`)
 - `ubuntu-e2e-aarch64-rootfs.tar.zst` (+ `.sha256`)
+- `ubuntu-26.04-e2e-aarch64-rootfs.tar.gz` (+ `.sha256`)
+- `ubuntu-26.04-e2e-aarch64-rootfs.tar.zst` (+ `.sha256`)
 
 The `.sha256` files are plain `sha256sum` output (`HASH␠␠FILENAME`). The `.gz`
 and `.zst` archives decompress to byte-identical tars.
@@ -76,6 +80,18 @@ login shells.
 Both Claude Code builds are present on purpose: the npm shim and the native ELF
 are different install paths and both are kept working.
 
+### ubuntu-26.04
+
+No agent CLIs. It exists because Ubuntu 24.04's Mesa has no gfxstream Vulkan
+driver and 26.04's does: vish-core's `vulkan_memory_budget` case drives that ICD
+through ViSH's virtio-gpu render node.
+
+| tool | path |
+|------|------|
+| Mesa Vulkan ICDs (gfxstream among them) | `/usr/share/vulkan/icd.d/` |
+| Vulkan loader + headers (`libvulkan-dev`), `vulkaninfo` | system paths |
+| `build-essential`, `zstd`, `curl`, `git` | on `PATH` |
+
 ## Build policy: upgrade first, install second
 
 Every `inside.sh` runs `apk update && apk upgrade --no-cache` (or
@@ -91,6 +107,7 @@ Docker is required; a non-arm64 host also needs QEMU/binfmt for `linux/arm64`.
 ```sh
 ./build/build.sh alpine
 ./build/build.sh ubuntu
+./build/build.sh ubuntu-26.04
 ```
 
 Artifacts land in `dist/`. The Ubuntu build downloads the base rootfs named in
@@ -108,11 +125,14 @@ build/alpine/inside.sh      alpine upgrade + packages + CLIs
 build/ubuntu/base.lock      pinned ViSH-App/ubuntu-rootfs release + sha256
 build/ubuntu/packages.txt   apt set
 build/ubuntu/inside.sh      ubuntu upgrade + packages + node/claude/bun/kimi
+build/ubuntu-26.04/         same three files for the GPU image (apt set only)
 ```
 
 ## Releases
 
-GitHub Actions builds both images on native `ubuntu-24.04-arm` runners (no
-QEMU) and publishes ONE release carrying all eight assets. Tags are
+GitHub Actions builds alpine and ubuntu on native `ubuntu-24.04-arm` runners (no
+QEMU) and ubuntu-26.04 on the self-hosted `ubuntu` runner group (amd64, under
+QEMU), and publishes ONE release carrying all twelve assets. A failed
+ubuntu-26.04 build does not hold back the release of the other two. Tags are
 `vYYYYMMDD-HHMM` (UTC). Triggers: push to `main` (excluding `**.md`), manual
 dispatch, and a daily `0 18 * * *` cron so the baked CLIs track upstream.
