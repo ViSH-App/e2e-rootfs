@@ -63,9 +63,9 @@ jobs:
           retention-days: 1
 
   # The guest GPU image (Mesa's gfxstream Vulkan ICD for vish-core's
-  # vulkan_memory_budget case). Self-hosted ubuntu group, which is amd64, so the
-  # arm64 rootfs is built under QEMU; it bakes no CLIs, so nothing slow runs
-  # emulated.
+  # vulkan_memory_budget case). Self-hosted ubuntu group (amd64 LXC
+  # containers), so the arm64 rootfs is built under the host's QEMU binfmt; it
+  # bakes no CLIs, so nothing slow runs emulated.
   build-gpu:
     needs: meta
     runs-on:
@@ -75,9 +75,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
+      # arm64 emulation comes from the LXC HOST's binfmt_misc
+      # (qemu-user-static, registered with the F flag). Registering it from in
+      # here (docker/setup-qemu-action) only lands in the container's own
+      # binfmt_misc instance, which docker's exec never consults:
+      # "installing: arm64 OK", then "exec format error". Fail in seconds if
+      # the host side is missing instead of after the base download.
+      - name: arm64 emulation available
+        run: |
+          set -eu
+          cat /proc/sys/fs/binfmt_misc/qemu-aarch64 2>/dev/null || echo "no qemu-aarch64 entry visible here"
+          m=$(docker run --rm --platform linux/arm64 ubuntu:26.04 uname -m)
+          echo "arm64 container reports: $m"
+          [ "$m" = aarch64 ] || { echo "::error::no arm64 emulation on this runner (register qemu-user-static binfmt on the LXC host)"; exit 1; }
 
       - name: Build ubuntu-26.04
         run: ./build/build.sh ubuntu-26.04
