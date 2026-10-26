@@ -131,8 +131,9 @@ build/ubuntu-26.04/         same three files for the GPU image (apt set only)
 ## Releases
 
 GitHub Actions builds alpine and ubuntu on native `ubuntu-24.04-arm` runners (no
-QEMU) and ubuntu-26.04 on the self-hosted `ubuntu` runner group (amd64, under
-QEMU), and publishes ONE release carrying all twelve assets. A failed
+QEMU) and ubuntu-26.04 on the self-hosted `ubuntu` runner group (amd64 LXC
+containers; arm64 runs under the LXC host's `qemu-user-static` binfmt, which
+must be registered on the host with the F flag), and publishes ONE release carrying all twelve assets. A failed
 ubuntu-26.04 build does not hold back the release of the other two. Tags are
 `vYYYYMMDD-HHMM` (UTC). Triggers: push to `main` (excluding `**.md`), manual
 dispatch, and a daily `0 18 * * *` cron so the baked CLIs track upstream.
