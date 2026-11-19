@@ -80,6 +80,10 @@ if [ "$DISTRO" = alpine ]; then
             *) need "$b" ;;
         esac
     done
+    # codex's daemon needs a ps that takes -p and lstart (busybox ps does not).
+    ps -p $$ -o stat= -o lstart= >/dev/null 2>&1 \
+        && ok procps-ps "$(command -v ps)" \
+        || bad procps-ps "ps rejects -p/-o lstart (busybox ps, procps-ng missing)"
     [ -f /usr/include/linux/fb.h ] && ok linux-headers /usr/include/linux/fb.h \
         || bad linux-headers "/usr/include/linux/fb.h missing"
     [ "$(npm config get prefix)" = /root/.npm-global ] \
