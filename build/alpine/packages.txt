@@ -38,6 +38,11 @@ ripgrep
 # generally useful
 git
 
+# procps-ng's ps: codex's app-server daemon records its start time with
+# `ps -p <pid> -o stat= -o lstart=`, which busybox ps rejects. ViSH's
+# onboarding installs procps alongside Codex, so the fixture matches it.
+procps-ng
+
 # Build-time requirements of build/common/finalize.sh, kept in the image because
 # they are cheap and useful: GNU tar (busybox tar has no --xattrs) and unzip
 # (bun.com/install refuses to run without it).
